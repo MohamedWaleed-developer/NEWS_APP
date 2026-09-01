@@ -5,13 +5,19 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/news_model.dart';
+import '../screens/news_details_screen.dart';
+import '../utils/app_strings.dart';
 
 class NewsCard extends StatefulWidget {
   final NewsModel news;
+  final bool isSaved;
+  final VoidCallback? onSaveChanged;
 
-  const NewsCard({
+  NewsCard({
     super.key,
     required this.news,
+    this.isSaved = false,
+    this.onSaveChanged,
   });
 
   @override
@@ -46,11 +52,33 @@ class _NewsCardState extends State<NewsCard> {
     );
   }
 
+  void openDetails() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => NewsDetailsScreen(
+          news: widget.news,
+        ),
+      ),
+    );
+  }
+
+  void toggleBookmark() {
+    widget.onSaveChanged?.call();
+  }
+
+  String text(String key) {
+    return AppStrings.text(context, key);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
     return AnimatedScale(
       scale: isPressed ? 0.985 : 1,
-      duration: const Duration(milliseconds: 120),
+      duration: Duration(milliseconds: 120),
       child: GestureDetector(
         onTapDown: (_) {
           setState(() {
@@ -61,6 +89,8 @@ class _NewsCardState extends State<NewsCard> {
           setState(() {
             isPressed = false;
           });
+
+          openDetails();
         },
         onTapCancel: () {
           setState(() {
@@ -69,25 +99,20 @@ class _NewsCardState extends State<NewsCard> {
         },
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.cardColor,
             borderRadius: BorderRadius.circular(18.r),
             border: Border.all(
-              color: const Color(0xffE7E7E7),
+              color: theme.brightness == Brightness.light
+                  ? Color(0xffE7E7EC)
+                  : Color(0xff292930),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 12.r,
-                offset: Offset(0, 4.h),
-              ),
-            ],
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildImage(),
-              _buildContent(),
+              _buildImage(theme),
+              _buildContent(theme, colors),
             ],
           ),
         ),
@@ -95,39 +120,50 @@ class _NewsCardState extends State<NewsCard> {
     );
   }
 
-  Widget _buildImage() {
+  Widget _buildImage(ThemeData theme) {
     return AspectRatio(
       aspectRatio: 16 / 9,
       child: widget.news.urlToImage.isNotEmpty
           ? Image.network(
         widget.news.urlToImage,
         fit: BoxFit.cover,
-        loadingBuilder: (context, child, loadingProgress) {
+        loadingBuilder: (
+            context,
+            child,
+            loadingProgress,
+            ) {
           if (loadingProgress == null) {
             return child;
           }
 
           return Center(
             child: SizedBox(
-              width: 26.w,
-              height: 26.w,
+              width: 25.w,
+              height: 25.w,
               child: CircularProgressIndicator(
-                strokeWidth: 2.2.w,
+                strokeWidth: 2.w,
+                color: theme.colorScheme.primary,
               ),
             ),
           );
         },
-        errorBuilder: (context, error, stackTrace) {
-          return _buildNoImage();
+        errorBuilder: (
+            context,
+            error,
+            stackTrace,
+            ) {
+          return _buildNoImage(theme);
         },
       )
-          : _buildNoImage(),
+          : _buildNoImage(theme),
     );
   }
 
-  Widget _buildNoImage() {
+  Widget _buildNoImage(ThemeData theme) {
     return Container(
-      color: const Color(0xffF4F4F2),
+      color: theme.brightness == Brightness.light
+          ? Color(0xffF0F0F3)
+          : Color(0xff1C1C22),
       padding: EdgeInsets.all(35.w),
       child: Lottie.asset(
         'assets/animation/no_news.json',
@@ -136,27 +172,45 @@ class _NewsCardState extends State<NewsCard> {
     );
   }
 
-  Widget _buildContent() {
+  Widget _buildContent(
+      ThemeData theme,
+      ColorScheme colors,
+      ) {
     return Padding(
       padding: EdgeInsets.fromLTRB(
         16.w,
-        14.h,
+        15.h,
         12.w,
         10.h,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'LATEST NEWS',
-            style: TextStyle(
-              fontSize: 11.sp,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-              color: const Color(0xff2E7D5B),
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: 9.w,
+              vertical: 5.h,
+            ),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  colors.primary.withOpacity(0.14),
+                  colors.secondary.withOpacity(0.08),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(7.r),
+            ),
+            child: Text(
+              text('latestNews'),
+              style: TextStyle(
+                fontSize: 10.sp,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+                color: colors.primary,
+              ),
             ),
           ),
-          SizedBox(height: 7.h),
+          SizedBox(height: 9.h),
           Text(
             widget.news.title,
             maxLines: 3,
@@ -165,20 +219,20 @@ class _NewsCardState extends State<NewsCard> {
               fontSize: 17.sp,
               fontWeight: FontWeight.w700,
               height: 1.35,
-              color: const Color(0xff202020),
+              color: colors.onSurface,
             ),
           ),
-          SizedBox(height: 12.h),
+          SizedBox(height: 13.h),
           Divider(
             height: 1.h,
-            color: const Color(0xffEEEEEE),
+            color: colors.outlineVariant.withOpacity(0.6),
           ),
-          SizedBox(height: 6.h),
+          SizedBox(height: 4.h),
           Row(
             children: [
               Expanded(
                 child: TextButton.icon(
-                  onPressed: openNews,
+                  onPressed: openDetails,
                   style: TextButton.styleFrom(
                     padding: EdgeInsets.symmetric(
                       vertical: 8.h,
@@ -187,10 +241,10 @@ class _NewsCardState extends State<NewsCard> {
                   ),
                   icon: Icon(
                     Icons.arrow_outward_rounded,
-                    size: 18.sp,
+                    size: 17.sp,
                   ),
                   label: Text(
-                    'Read Article',
+                    text('readArticle'),
                     style: TextStyle(
                       fontSize: 13.sp,
                       fontWeight: FontWeight.w600,
@@ -200,12 +254,39 @@ class _NewsCardState extends State<NewsCard> {
               ),
               IconButton(
                 onPressed: shareNews,
-                tooltip: 'Share',
-                splashRadius: 22.r,
+                tooltip: text('share'),
                 icon: Icon(
                   Icons.share_outlined,
                   size: 20.sp,
-                  color: const Color(0xff444444),
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+              AnimatedSwitcher(
+                duration: Duration(milliseconds: 180),
+                transitionBuilder: (
+                    child,
+                    animation,
+                    ) {
+                  return ScaleTransition(
+                    scale: animation,
+                    child: child,
+                  );
+                },
+                child: IconButton(
+                  key: ValueKey(widget.isSaved),
+                  onPressed: toggleBookmark,
+                  tooltip: widget.isSaved
+                      ? text('removeFromSaved')
+                      : text('save'),
+                  icon: Icon(
+                    widget.isSaved
+                        ? Icons.bookmark_rounded
+                        : Icons.bookmark_border_rounded,
+                    size: 21.sp,
+                    color: widget.isSaved
+                        ? colors.primary
+                        : colors.onSurfaceVariant,
+                  ),
                 ),
               ),
             ],
